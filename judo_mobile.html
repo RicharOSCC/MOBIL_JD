@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dojo Digital - Plan Maestro Jurota (Alpine.js)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        /* Estilo Inter para una lectura clara */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            padding: 0;
+            margin: 0;
+        }
+        /* Estilos japoneses personalizados */
+        .japanese-panel {
+            background: #111827; /* Gris muy oscuro, casi negro */
+            color: #f7ffec; /* Blanco roto */
+            border-left: 5px solid #DC2626; /* Borde rojo acentuado */
+            border-radius: 8px;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+            padding: 1.5rem;
+        }
+        /* Estilo para el panel de motivación */
+        .motivation-panel {
+            background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%); /* Degradado rojo */
+            color: #fff;
+            border: 3px solid #FEE2E2;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+            padding: 2rem 1.5rem;
+        }
+        /* Drag and Drop - Mejorado */
+        .drag-item {
+            cursor: grab;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .drag-item:active {
+            cursor: grabbing;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            transform: scale(1.02);
+        }
+        .drop-zone {
+            min-height: 50px;
+            border-radius: 6px;
+            padding: 8px;
+            transition: background-color 0.2s;
+        }
+        .drop-highlight {
+             background-color: #E5E7EB !important; /* Resaltado de drop más claro */
+             border-color: #DC2626;
+        }
+        /* Estilos para la vista de tarjeta de comidas en móvil */
+        .meal-card-mobile {
+            border-left: 4px solid var(--meal-color); /* Usar una variable CSS */
+        }
+    </style>
+</head>
+<body x-data="dojoApp()">
+
+    <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4 text-center">
+            🥋 Dojo Digital: Plan Maestro Jurota
+        </h1>
+        <p class="text-center text-gray-600 mb-8 text-sm sm:text-base">
+            Tu camino hacia la fuerza funcional y el físico atlético. Arrastra las comidas para organizar tu semana.
+        </p>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+            
+            <div class="japanese-panel lg:col-span-1 h-fit">
+                <h2 class="text-xl font-bold border-b-2 border-red-600 pb-2 mb-4 tracking-wider">
+                    目標 (Mokuhyō): Meta del Guerrero
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-sm uppercase font-semibold text-red-300">Proteína Diaria (Promedio)</p>
+                        <p id="protein-goal-value" class="text-3xl font-extrabold text-red-500" x-text="`${dailyProteinAvg.toFixed(0)}g / ${GOAL_PROTEIN}g`"></p>
+                        <div class="w-full bg-gray-600 rounded-full h-2.5 mt-1">
+                            <div id="protein-bar" class="h-2.5 rounded-full bg-red-600 transition-all duration-500" :style="`width: ${proteinPercentage}%`"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="text-sm uppercase font-semibold text-red-300">Calorías Diarias (Promedio)</p>
+                        <p id="calorie-goal-value" class="text-3xl font-extrabold text-red-500" x-text="`${dailyCalorieAvg.toFixed(0)} Kcal / ${GOAL_CALORIES} Kcal`"></p>
+                        <div class="w-full bg-gray-600 rounded-full h-2.5 mt-1">
+                            <div id="calorie-bar" class="h-2.5 rounded-full bg-red-600 transition-all duration-500" :style="`width: ${caloriePercentage}%`"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-gray-600">
+                    <h3 class="text-sm font-semibold text-red-400">Objetivos Semanales (Total)</h3>
+                    <p class="text-xs mt-1">P: <span x-text="totalNutrition.p.toFixed(0)">0</span>g | C: <span x-text="totalNutrition.c.toFixed(0)">0</span>g | G: <span x-text="totalNutrition.f.toFixed(0)">0</span>g</p>
+                </div>
+                
+                <p class="text-xs italic mt-4 text-red-300">
+                    *Metas de <span x-text="GOAL_PROTEIN"></span>g de proteína y <span x-text="GOAL_CALORIES"></span> Kcal ajustadas para crecimiento.
+                </p>
+            </div>
+
+            <div class="japanese-panel lg:col-span-2">
+                <h2 class="text-xl font-bold border-b-2 border-red-600 pb-2 mb-4 tracking-wider">
+                    南無妙法蓮華経 (Daimoku): La Vía de la Revolución Humana
+                </h2>
+                <div class="flex flex-col sm:flex-row gap-6 items-center">
+                    <div class="w-full sm:w-1/3 flex-shrink-0">
+                        <img src="https://placehold.co/300x200/DC2626/ffffff?text=FILOSOFÍA+DAISHONIN" 
+                             alt="Imagen de la práctica del Budismo de Nichiren Daishonin" 
+                             class="rounded-lg shadow-lg w-full h-auto object-cover border border-red-600">
+                    </div>
+                    <div class="w-full sm:w-2/3">
+                        <p class="text-sm leading-relaxed text-gray-300">
+                            La práctica filosófica del Budismo de Nichiren Daishonin se alinea con el Judo en el principio de **Jita Kyoei (Prosperidad Mutua)**.
+                            El entrenamiento físico fomenta la **disciplina** y la **energía vital**, pilares para la **Revolución Humana** (cambio interior).
+                        </p>
+                        <p class="mt-3 text-sm font-semibold text-red-500">
+                            "Tu Dojo es tu vida. Sé fuerte no solo para ti, sino para inspirar a los demás."
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 mt-8">
+            🍽️ Rutina Nutricional Semanal
+        </h2>
+
+        <div class="sm:hidden mb-6" x-data="{ open: false }">
+            <label for="day-select" class="block text-sm font-medium text-gray-700 mb-2">Selecciona un Día:</label>
+            <select id="day-select" 
+                    x-model="currentDay" 
+                    @change="updateDayData"
+                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 text-lg font-semibold">
+                <template x-for="day in days" :key="day">
+                    <option :value="day" x-text="day"></option>
+                </template>
+            </select>
+
+            <div class="mt-4 bg-white p-4 rounded-lg shadow-md border border-gray-200">
+                <h3 class="text-xl font-bold text-indigo-700" x-text="currentDay"></h3>
+                <p class="text-sm text-gray-500 mb-3" x-text="weeklySchedule[currentDay]['Entrenamiento']"></p>
+                <div class="space-y-3">
+                    <template x-for="mealType in mealTypes" :key="mealType">
+                        <div class="meal-card-mobile p-3 rounded-md shadow-sm border border-gray-100"
+                             :style="`--meal-color: ${getMealById(weeklySchedule[currentDay][mealType]).tailwindColor}`"
+                             :class="getMealById(weeklySchedule[currentDay][mealType]).color.replace('-100', '-50')"
+                             :id="`${currentDay}-${mealType}`"
+                             ondragover="dojoApp().allowDrop(event)"
+                             ondragleave="dojoApp().leaveDrop(event)"
+                             ondrop="dojoApp().drop(event, dojoApp().currentDay, mealType.replace('_', ''))"
+                        >
+                            <p class="text-xs uppercase font-semibold text-gray-500" x-text="mealType.replace('_', ' ')"></p>
+                            <div class="drag-item w-full font-bold text-base mt-1 text-gray-800"
+                                 draggable="true"
+                                 @dragstart="dragStart($event, currentDay, mealType.replace('_', ''))"
+                                 @dragend="dragEnd($event)"
+                                 x-text="getMealById(weeklySchedule[currentDay][mealType.replace('_', '')]).name">
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">
+                                P: <span x-text="getMealById(weeklySchedule[currentDay][mealType.replace('_', '')]).p"></span>g |
+                                C: <span x-text="getMealById(weeklySchedule[currentDay][mealType.replace('_', '')]).c"></span>g |
+                                G: <span x-text="getMealById(weeklySchedule[currentDay][mealType.replace('_', '')]).f"></span>g
+                            </p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+             <div class="mt-4 p-3 bg-indigo-50 rounded-lg text-center shadow-inner">
+                <p class="text-sm font-semibold text-indigo-700">Resumen Nutricional del Día:</p>
+                <p class="text-xs text-indigo-600 mt-1">
+                    P: <span x-text="dailyNutrition[currentDay].p"></span>g / C: <span x-text="dailyNutrition[currentDay].c"></span>g / G: <span x-text="dailyNutrition[currentDay].f"></span>g
+                </p>
+                <p class="text-xs text-indigo-600">Calorías: <span x-text="dailyNutrition[currentDay].cal"></span> Kcal</p>
+            </div>
+        </div>
+
+        <div class="hidden sm:block overflow-x-auto rounded-lg shadow-xl border border-gray-200 bg-white mb-10">
+            <div id="weekly-schedule-desktop" class="min-w-[800px] border-collapse" x-init="renderScheduleDesktop()">
+                </div>
+        </div>
+        
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 mt-8">
+            💪 Rutina de Ejercicio Detallada (Marca tu Progreso)
+        </h2>
+        <div id="exercise-routine" class="w-full mb-10" x-init="renderExerciseRoutine()">
+            </div>
+
+        <div class="motivation-panel text-center mt-10">
+            <h3 class="text-2xl sm:text-4xl font-extrabold mb-4 text-white tracking-widest">
+                宿命転換 人間革命
+            </h3>
+            <p class="text-sm sm:text-xl font-medium italic text-red-200">
+                Shukumei Tenkan | Ningen Kakumei
+            </p>
+            <p class="text-lg sm:text-2xl font-semibold mt-4 text-white">
+                "Cambia tu destino con la perseverancia. <br class="sm:hidden">
+                ¡La Revolución Humana es la victoria en la vida!"
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function dojoApp() {
+            // --- Datos Nutricionales y Rutina Base ---
+            const GOAL_PROTEIN = 150;
+            const GOAL_CALORIES = 2500;
+            const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+            const MEAL_TYPES = ['Desayuno', 'Media_Mañana', 'Almuerzo', 'Media_Tarde', 'Cena'];
+            const TAILWIND_COLORS = {
+                'bg-amber-100': '#FEF3C7', // Desayuno
+                'bg-yellow-100': '#FEF9C3', // Media Mañana
+                'bg-red-100': '#FEE2E2', // Almuerzo
+                'bg-green-100': '#D1FAE5', // Media Tarde
+                'bg-blue-100': '#DBEAFE' // Cena
+            };
+
+            const MEALS = [
+                // Desayuno (color: #FEF3C7)
+                { id: 1, name: "Avena y 3 Huevos Duros", type: "Desayuno", c: 45, p: 35, f: 18, color: "bg-amber-100", tailwindColor: TAILWIND_COLORS['bg-amber-100'] },
+                { id: 2, name: "Omelette de 3 huevos con verduras", type: "Desayuno", c: 15, p: 30, f: 20, color: "bg-amber-100", tailwindColor: TAILWIND_COLORS['bg-amber-100'] },
+                { id: 3, name: "Quinua Andina con 2 Huevos", type: "Desayuno", c: 50, p: 25, f: 10, color: "bg-amber-100", tailwindColor: TAILWIND_COLORS['bg-amber-100'] },
+                // Media Mañana (color: #FEF9C3)
+                { id: 4, name: "Yogur Griego y Fruta", type: "Media Mañana", c: 30, p: 18, f: 8, color: "bg-yellow-100", tailwindColor: TAILWIND_COLORS['bg-yellow-100'] },
+                { id: 5, name: "3 Huevos Duros y Manzana", type: "Media Mañana", c: 20, p: 22, f: 15, color: "bg-yellow-100", tailwindColor: TAILWIND_COLORS['bg-yellow-100'] },
+                { id: 6, name: "Onigiri de Pollo", type: "Media Mañana", c: 40, p: 20, f: 5, color: "bg-yellow-100", tailwindColor: TAILWIND_COLORS['bg-yellow-100'] },
+                // Almuerzo (color: #FEE2E2)
+                { id: 7, name: "Pechuga de Pollo y Arroz Integral", type: "Almuerzo", c: 60, p: 50, f: 12, color: "bg-red-100", tailwindColor: TAILWIND_COLORS['bg-red-100'] },
+                { id: 8, name: "Lentejas y Camote", type: "Almuerzo", c: 70, p: 30, f: 5, color: "bg-red-100", tailwindColor: TAILWIND_COLORS['bg-red-100'] },
+                { id: 9, name: "Ceviche y Yuca", type: "Almuerzo", c: 55, p: 45, f: 10, color: "bg-red-100", tailwindColor: TAILWIND_COLORS['bg-red-100'] },
+                // Media Tarde (color: #D1FAE5)
+                { id: 10, name: "Atún en Agua y Galletas", type: "Media Tarde", c: 35, p: 25, f: 3, color: "bg-green-100", tailwindColor: TAILWIND_COLORS['bg-green-100'] },
+                { id: 11, name: "Batido de Fruta y Leche", type: "Media Tarde", c: 40, p: 15, f: 5, color: "bg-green-100", tailwindColor: TAILWIND_COLORS['bg-green-100'] },
+                { id: 12, name: "Edamame", type: "Media Tarde", c: 10, p: 15, f: 8, color: "bg-green-100", tailwindColor: TAILWIND_COLORS['bg-green-100'] },
+                // Cena (color: #DBEAFE)
+                { id: 13, name: "Atún y Ensalada", type: "Cena", c: 15, p: 35, f: 5, color: "bg-blue-100", tailwindColor: TAILWIND_COLORS['bg-blue-100'] },
+                { id: 14, name: "Sopa de Verduras y Pollo", type: "Cena", c: 25, p: 30, f: 5, color: "bg-blue-100", tailwindColor: TAILWIND_COLORS['bg-blue-100'] },
+                { id: 15, name: "Tilapia a la Parrilla y Vegetales", type: "Cena", c: 20, p: 40, f: 8, color: "bg-blue-100", tailwindColor: TAILWIND_COLORS['bg-blue-100'] }
+            ];
+
+            let weeklySchedule = {
+                Lunes: {
+                    Desayuno: 1, Media_Mañana: 4, Almuerzo: 7, Media_Tarde: 10, Cena: 13,
+                    Entrenamiento: "Fuerza y Estabilidad del Tronco"
+                },
+                Martes: {
+                    Desayuno: 2, Media_Mañana: 5, Almuerzo: 8, Media_Tarde: 11, Cena: 14,
+                    Entrenamiento: "Fuerza Explosiva de Piernas"
+                },
+                Miércoles: {
+                    Desayuno: 3, Media_Mañana: 6, Almuerzo: 9, Media_Tarde: 12, Cena: 15,
+                    Entrenamiento: "Agarre (Grip) y Hombros"
+                },
+                Jueves: {
+                    Desayuno: 1, Media_Mañana: 5, Almuerzo: 7, Media_Tarde: 10, Cena: 13,
+                    Entrenamiento: "Resistencia y Adaptación"
+                },
+                Viernes: {
+                    Desayuno: 2, Media_Mañana: 4, Almuerzo: 8, Media_Tarde: 11, Cena: 14,
+                    Entrenamiento: "Potencia de Proyección y Núcleo Rotacional"
+                },
+                Sábado: {
+                    Desayuno: 3, Media_Mañana: 6, Almuerzo: 9, Media_Tarde: 12, Cena: 15,
+                    Entrenamiento: "Movilidad, Brazos y Flexibilidad"
+                },
+                Domingo: {
+                    Desayuno: 1, Media_Mañana: 4, Almuerzo: 7, Media_Tarde: 10, Cena: 13,
+                    Entrenamiento: "Descanso Total"
+                }
+            };
+            
+            const EXERCISE_ROUTINE = {
+                Lunes: [
+                    "Circuito A: Potencia de Presión (3 Rondas, 60 seg. de descanso).",
+                    "Push-ups (flexiones) x 15-20 (usa las rodillas si es necesario).",
+                    "Plancha frontal (Plank) x 60 segundos.",
+                    "Invertir plancha (Superman) x 15 repeticiones."
+                ],
+                Martes: [
+                    "Series de Saltos (Plyometrics):",
+                    "Sentadillas (sin peso) x 30.",
+                    "Sentadillas con salto (Squat Jumps) x 15 (explosión al subir).",
+                    "Zancadas (Lunges) x 15 por pierna.",
+                    "Ejercicio Jurota: 'El paso del Gigante' (Pasos largos y controlados) x 5 minutos."
+                ],
+                Miércoles: [
+                    "Agarre (Grip) y Hombros (Usando las 10kg):",
+                    "Fuerza Estática (Kumi-Kata): Colgarse con agarre de toalla (máximo tiempo, 3 series).",
+                    "Elevaciones frontales y laterales con 10 kg (10 rep. cada una).",
+                    "Remo inclinado con 10 kg x 15 rep."
+                ],
+                Jueves: [
+                    "Resistencia y Adaptación:",
+                    "Entrenamiento al Aire Libre (Caminata Larga): 60 minutos a buen ritmo.",
+                    "Intercalar 10 minutos de ejercicios de Ukemi (caídas) suaves sobre césped (solo rol hacia adelante y atrás)."
+                ],
+                Viernes: [
+                    "Potencia de Proyección y Núcleo Rotacional (SIN COMPAÑERO):",
+                    "Circuito de Núcleo (3 Rondas):",
+                    "Torsiones rusas (Russian Twists con una pesa de 5kg) x 30.",
+                    "Elevación de piernas acostado (Leg Raises) x 15.",
+                    "Mountain Climbers x 40.",
+                    "Lucha con Sombra: Simular Tai-Sabaki y O-Soto-Gari explosivos x 10 minutos."
+                ],
+                Sábado: [
+                    "Movilidad, Brazos y Flexibilidad:",
+                    "Sesión Larga (60 min): Estiramiento profundo, centrado en hombros y cadera.",
+                    "Curl de Bíceps con 10 kg x 3 series de 15.",
+                    "Extensión de Tríceps sobre cabeza con 10 kg x 3 series de 15."
+                ],
+                Domingo: [
+                    "Descanso Total - Recuperación física y enfoque en el Budismo."
+                ]
+            };
+
+            const EXERCISE_COMPLETION_KEY = 'judo_routine_completion';
+
+            return {
+                // Alpine State
+                GOAL_PROTEIN,
+                GOAL_CALORIES,
+                days: DAYS,
+                mealTypes: MEAL_TYPES,
+                weeklySchedule: weeklySchedule,
+                currentDay: DAYS[0],
+                totalNutrition: { c: 0, p: 0, f: 0, cal: 0 },
+                dailyNutrition: {},
+                draggedMealId: null,
+                draggedFromDay: null,
+                draggedFromMealType: null,
+                routineCompletionState: JSON.parse(localStorage.getItem(EXERCISE_COMPLETION_KEY)) || {},
+
+                // Computed Properties para Alpine
+                get dailyProteinAvg() {
+                    return this.totalNutrition.p / 7;
+                },
+                get dailyCalorieAvg() {
+                    return this.totalNutrition.cal / 7;
+                },
+                get proteinPercentage() {
+                    return Math.min(100, (this.dailyProteinAvg / GOAL_PROTEIN) * 100);
+                },
+                get caloriePercentage() {
+                    return Math.min(100, (this.dailyCalorieAvg / GOAL_CALORIES) * 100);
+                },
+
+                // --- Inicialización y Cálculo ---
+                init() {
+                    this.calculateAllNutrition();
+                    this.currentDay = DAYS[new Date().getDay() - 1] || DAYS[0]; // Establecer el día actual
+                },
+
+                calculateMealCalories(meal) {
+                    return (meal.c * 4) + (meal.p * 4) + (meal.f * 9);
+                },
+                
+                getMealById(id) {
+                    return MEALS.find(meal => meal.id === id);
+                },
+
+                calculateDailyNutrition(day) {
+                    let daily = { c: 0, p: 0, f: 0, cal: 0 };
+                    const dayMeals = this.weeklySchedule[day];
+
+                    for (const type in dayMeals) {
+                        if (type !== 'Entrenamiento') {
+                            const meal = this.getMealById(dayMeals[type]);
+                            if (meal) {
+                                daily.c += meal.c;
+                                daily.p += meal.p;
+                                daily.f += meal.f;
+                                daily.cal += this.calculateMealCalories(meal);
+                            }
+                        }
+                    }
+                    return daily;
+                },
+
+                calculateAllNutrition() {
+                    let total = { c: 0, p: 0, f: 0, cal: 0 };
+                    let dailyData = {};
+                    
+                    DAYS.forEach(day => {
+                        const daily = this.calculateDailyNutrition(day);
+                        dailyData[day] = daily;
+                        total.c += daily.c;
+                        total.p += daily.p;
+                        total.f += daily.f;
+                        total.cal += daily.cal;
+                    });
+                    
+                    this.totalNutrition = total;
+                    this.dailyNutrition = dailyData;
+                },
+
+                updateDayData() {
+                    // Solo para asegurar la reactividad si se cambia el día manualmente
+                },
+
+                // --- Drag and Drop Logic ---
+
+                dragStart(event, day, mealType) {
+                    this.draggedMealId = this.weeklySchedule[day][mealType];
+                    this.draggedFromDay = day;
+                    this.draggedFromMealType = mealType;
+                    event.dataTransfer.setData('text/plain', this.draggedMealId);
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.currentTarget.classList.add('opacity-50');
+                },
+
+                dragEnd(event) {
+                    event.currentTarget.classList.remove('opacity-50');
+                },
+
+                allowDrop(event) {
+                    event.preventDefault();
+                    event.currentTarget.classList.add('drop-highlight');
+                },
+
+                leaveDrop(event) {
+                    event.currentTarget.classList.remove('drop-highlight');
+                },
+
+                drop(event, targetDay, targetMealType) {
+                    event.preventDefault();
+                    event.currentTarget.classList.remove('drop-highlight');
+
+                    if (this.draggedMealId === null) return;
+
+                    const targetMealId = this.weeklySchedule[targetDay][targetMealType];
+
+                    // Actualizar el estado directamente para reactividad
+                    this.weeklySchedule[targetDay][targetMealType] = this.draggedMealId;
+                    this.weeklySchedule[this.draggedFromDay][this.draggedFromMealType] = targetMealId;
+
+                    // Recalcular y re-renderizar
+                    this.calculateAllNutrition();
+                    this.renderScheduleDesktop(); // Asegura que la vista de desktop se actualice
+                },
+
+                // --- Renderizado Desktop (Tabla) ---
+                renderScheduleDesktop() {
+                    const scheduleContainer = document.getElementById('weekly-schedule-desktop');
+                    if (!scheduleContainer) return;
+
+                    let html = `
+                        <div class="grid grid-cols-7 gap-1 p-2 bg-gray-700 text-white font-bold rounded-t-lg text-center text-sm">
+                            ${DAYS.map(day => `<span>${day}</span>`).join('')}
+                        </div>
+                    `;
+                    
+                    // Cuerpo de la tabla (por tipo de comida)
+                    MEAL_TYPES.forEach(mealType => {
+                        html += `
+                            <div class="grid grid-cols-7 gap-1 border-b border-gray-300">
+                                ${DAYS.map(day => {
+                                    const mealId = this.weeklySchedule[day][mealType];
+                                    const meal = this.getMealById(mealId);
+                                    const mealName = meal ? meal.name : 'N/A';
+                                    const bgColor = meal ? meal.color : 'bg-white';
+                                    
+                                    const tooltip = meal ? 
+                                        `C: ${meal.c}g, P: ${meal.p}g, G: ${meal.f}g` : 'Sin datos';
+                                    
+                                    return `
+                                        <div id="${day}-${mealType}"
+                                            class="drop-zone ${bgColor} p-2 text-xs h-20 flex flex-col justify-center items-center m-1 text-gray-800 border border-gray-200 rounded-md group relative"
+                                            ondragover="dojoApp().allowDrop(event)"
+                                            ondragleave="dojoApp().leaveDrop(event)"
+                                            ondrop="dojoApp().drop(event, '${day}', '${mealType}')"
+                                        >
+                                            <div class="drag-item w-full text-center font-medium"
+                                                draggable="true"
+                                                ondragstart="dojoApp().dragStart(event, '${day}', '${mealType}')"
+                                                ondragend="dojoApp().dragEnd(event)"
+                                                title="Arrastra para intercambiar"
+                                            >
+                                                <p class="font-bold">${mealType}</p>
+                                                ${mealName}
+                                            </div>
+                                            <span class="absolute top-full mt-1 px-2 py-1 bg-gray-800 text-white text-[0.6rem] rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap pointer-events-none">
+                                                ${tooltip}
+                                            </span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `;
+                    });
+
+                    // Fila de Entrenamiento y Nutrición Diaria
+                    html += `
+                        <div class="grid grid-cols-7 gap-1 p-2 bg-gray-100 text-gray-800 font-semibold rounded-b-lg mt-2">
+                            ${DAYS.map(day => {
+                                const daily = this.dailyNutrition[day];
+                                return `
+                                    <div class="p-1 text-center text-xs">
+                                        <span class="text-indigo-600 font-bold">${this.weeklySchedule[day]['Entrenamiento']}</span>
+                                        <div class="text-[0.6rem] mt-1 text-gray-500">
+                                            <p>P: ${daily.p}g / C: ${daily.c}g / G: ${daily.f}g</p>
+                                            <p>Calorías: ${daily.cal} Kcal</p>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                    scheduleContainer.innerHTML = html;
+                },
+
+                // --- Lógica de la Rutina de Ejercicio Interactiva ---
+                handleExerciseCompletion(day, index, event) {
+                    // Usar $store o simplemente modificar el estado con Alpine.mutate si es necesario
+                    if (!this.routineCompletionState[day]) {
+                        this.routineCompletionState[day] = [];
+                    }
+                    this.routineCompletionState[day][index] = event.target.checked;
+                    localStorage.setItem(EXERCISE_COMPLETION_KEY, JSON.stringify(this.routineCompletionState));
+                    this.renderExerciseRoutine(); // Re-renderizar para aplicar el efecto 'tachado'
+                },
+
+                renderExerciseRoutine() {
+                    const routineContainer = document.getElementById('exercise-routine');
+                    if (!routineContainer) return;
+
+                    const days = Object.keys(EXERCISE_ROUTINE);
+                    let html = '';
+                    
+                    // 1 columna en móvil, 2 en tablet, 3 en desktop.
+                    html += '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">';
+                    
+                    days.forEach(day => {
+                        const exercises = EXERCISE_ROUTINE[day];
+                        const dayKey = day;
+                        const isRestDay = day === 'Domingo';
+
+                        html += `
+                            <div class="bg-white p-4 rounded-lg shadow-md border-t-4 ${isRestDay ? 'border-gray-500' : 'border-indigo-600'}">
+                                <h3 class="text-xl font-bold mb-2 ${isRestDay ? 'text-gray-500' : 'text-indigo-700'}">${day} - ${weeklySchedule[day]['Entrenamiento']}</h3>
+                                <ul class="space-y-2 text-sm">
+                        `;
+                        
+                        exercises.forEach((exercise, index) => {
+                            const isChecked = this.routineCompletionState[dayKey]?.[index] || false;
+                            
+                            html += `
+                                <li class="flex items-start">
+                                    <input type="checkbox" id="${dayKey}-${index}" ${isChecked ? 'checked' : ''} 
+                                           onchange="dojoApp().handleExerciseCompletion('${dayKey}', ${index}, event)" 
+                                           class="mt-1 mr-2 h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 flex-shrink-0">
+                                    <label for="${dayKey}-${index}" class="text-gray-700 ${isChecked ? 'line-through text-gray-400 italic' : ''}">
+                                        ${exercise}
+                                    </label>
+                                </li>
+                            `;
+                        });
+
+                        html += `
+                                </ul>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    routineContainer.innerHTML = html;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
